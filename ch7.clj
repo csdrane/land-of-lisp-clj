@@ -115,3 +115,41 @@
   (or (within-one a b edge-alist)
       (some #(within-one % b edge-alist) 
             (neighbors a edge-alist))))
+
+(defn make-city-nodes [edge-alist]
+  (let [wumpus (random-node)
+        glow-worms (map (fn [_] (random-node)) 
+                        '(repeat *worm-num* nil))]
+    (loop [n 1 coll '()]
+      (if (<= n *node-num*)
+        (recur (inc n) 
+               (cons
+                (remove nil? 
+                        (list n (cond
+                                 (= n wumpus) '(wumpus)
+                                 (within-two n wumpus edge-alist) '(blood!))
+                              (cond 
+                               (some #(= % n) glow-worms) '(glow-worm)
+                               (some (fn [worm] 
+                                       (within-one n worm edge-alist)) 
+                                     glow-worms)
+                               '(lights))
+                              (when (some rest (rest (some #(= % n) edge-alist)))
+                                '(sirens!)))) 
+                coll))
+        coll))))
+
+(defn find-empty-node []
+  (let [x (random-node)]
+    (do (println (some #(when (= (first %) x) %) *congestion-city-nodes*))
+      (if (seq (rest (some #(when (= (first %) x) %) *congestion-city-nodes*)))
+       (find-empty-node)
+       x))))
+
+(defn new-game []
+  (def ^:dynamic *congestion-city-edges* (make-city-edges))
+  (def ^:dynamic *congestion-city-nodes* (make-city-nodes *congestion-city-edges*))
+  (def ^:dynamic *player-pos* (find-empty-node))
+  (def ^:dynamic *visited-nodes* (list *player-pos*))
+  ;(draw-city)
+  )
