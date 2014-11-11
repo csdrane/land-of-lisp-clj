@@ -84,19 +84,16 @@
 ;; Receives alist of edges and list of edges with cops. Note to self,
 ;; empty sets are not falsey.
 (defn add-cops [edge-alist edges-with-cops]
-  (println (apply hash-set edges-with-cops))
   (map (fn [x]
          (let [node1 (first x)
                node1-edges (rest x)]
            (cons node1
                  (map (fn [edge]
                         (let [node2 (first edge)]
-                          (do 
-                            (println (apply hash-set (edge-pair node1 node2))) 
-                            (if (seq (set/intersection (apply hash-set (edge-pair node1 node2))
-                                                   (apply hash-set edges-with-cops)))
-                              (list node2 'cops)
-                              edge))))
+                          (if (seq (set/intersection (apply hash-set (edge-pair node1 node2))
+                                                     (apply hash-set edges-with-cops)))
+                            (list node2 'cops)
+                            edge)))
                       node1-edges))))
        edge-alist))
 
@@ -107,3 +104,14 @@
         cops (filter (fn [_] (zero? (rand-int *cop-odds*))) edge-list)]
     (add-cops (edges-to-alist edge-list) cops)))
 
+;; Function would benefit from using map instead of alist.
+(defn neighbors [node edge-alist]
+  (map first ((comp rest first) (filter #(= (first %) node) edge-alist))))
+
+(defn within-one [a b edge-alist]
+  (some #(= b %) (neighbors a edge-alist)))
+
+(defn within-two [a b edge-alist]
+  (or (within-one a b edge-alist)
+      (some #(within-one % b edge-alist) 
+            (neighbors a edge-alist))))
