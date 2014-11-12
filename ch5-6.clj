@@ -2,7 +2,8 @@
 ;; Translated into Clojure from Common Lisp
 ;; http://landoflisp.com/wizards_game.lisp
 
-(require '[clojure.string :as str])
+(ns land-of-lisp.ch5-6 
+  (:require [clojure.string :as str]))
 
 (def ^:dynamic *location* 'living-room)
 (def *allowed-commands* '(look walk pickup inventory))

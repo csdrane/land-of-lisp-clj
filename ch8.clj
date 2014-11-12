@@ -2,7 +2,8 @@
 ;; Translated into Clojure from Common Lisp
 ;; http://landoflisp.com/wumpus.lisp
 
-(require '[clojure.set :as set])
+(ns land-of-lisp.ch7 
+  (:require [clojure.set :as set]))
 (def *congestion-city-nodes* nil) 
 (def *congestion-city-edges* nil)
 (def *visited-nodes* nil)
@@ -122,21 +123,23 @@
                         '(repeat *worm-num* nil))]
     (loop [n 1 coll '()]
       (if (<= n *node-num*)
-        (recur (inc n) 
-               (cons
-                (remove nil? 
-                        (list n (cond
-                                 (= n wumpus) '(wumpus)
-                                 (within-two n wumpus edge-alist) '(blood!))
-                              (cond 
-                               (some #(= % n) glow-worms) '(glow-worm)
-                               (some (fn [worm] 
-                                       (within-one n worm edge-alist)) 
-                                     glow-worms)
-                               '(lights))
-                              (when (some rest (rest (some #(= % n) edge-alist)))
-                                '(sirens!)))) 
-                coll))
+        (recur 
+          (inc n) 
+          (cons
+            (remove nil? 
+                    (list n 
+                          (cond
+                           (= n wumpus) '(wumpus)
+                           (within-two n wumpus edge-alist) '(blood!))
+                          (cond 
+                           (some #(= % n) glow-worms) '(glow-worm)
+                           (some (fn [worm] 
+                                   (within-one n worm edge-alist)) 
+                                 glow-worms)
+                           '(lights))
+                          (when (some rest (rest (some #(= % n) edge-alist)))
+                            '(sirens!)))) 
+            coll))
         coll))))
 
 (defn find-empty-node []
