@@ -2,3 +2,6 @@ target/*
 .lein*
 .nrepl*
 \#*\#
+*.png
+*.dot
+.DS_Store
