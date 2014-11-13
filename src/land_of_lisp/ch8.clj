@@ -168,11 +168,23 @@
              (if (= (first node) *player-pos*)
                (concat n '(*))
                n))
-           (list node '?))) 
+           (list (first node) '?))) 
        (distinct
         (list *visited-nodes*
               (mapcat (fn [node]
                         (map first
                              (rest (some #(when (= node (first %)) %) *congestion-city-edges*))))
                       *visited-nodes*)))))
+
+(defn known-city-edges []
+  (map (fn [node]
+         (cons node (map (fn [x]
+                           (if (some #(= % (first x)) *visited-nodes*)
+                             x
+                             (list (first x))))
+                         (rest (some #(when (= node (first %)) %) *congestion-city-edges*)))))
+       *visited-nodes*))
+
+(defn draw-known-city []
+  (ugraph->png "known-city" (known-city-nodes) (known-city-edges)))
 
