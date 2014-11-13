@@ -161,5 +161,18 @@
   (def ^:dynamic *visited-nodes* (list *player-pos*))
   (draw-city))
 
-
+(defn known-city-nodes []
+  (map (fn [node]
+         (if (some #(= % (first node)) *visited-nodes*)
+           (let [n (some #(when (= (first node) (first %)) %) *congestion-city-nodes*)]
+             (if (= (first node) *player-pos*)
+               (concat n '(*))
+               n))
+           (list node '?))) 
+       (distinct
+        (list *visited-nodes*
+              (mapcat (fn [node]
+                        (map first
+                             (rest (some #(when (= node (first %)) %) *congestion-city-edges*))))
+                      *visited-nodes*)))))
 
