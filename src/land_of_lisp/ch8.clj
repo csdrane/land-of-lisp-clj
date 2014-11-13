@@ -1,9 +1,11 @@
-;; Land of Lisp, ch. 7
+;; Land of Lisp, ch. 8
 ;; Translated into Clojure from Common Lisp
 ;; http://landoflisp.com/wumpus.lisp
 
-(ns land-of-lisp.ch7 
-  (:require [clojure.set :as set]))
+(ns land-of-lisp.ch8
+  (:require [clojure.set :as set]
+            [land-of-lisp.ch7 :refer [ugraph->png]]))
+
 (def *congestion-city-nodes* nil) 
 (def *congestion-city-edges* nil)
 (def *visited-nodes* nil)
@@ -149,10 +151,15 @@
        (find-empty-node)
        x))))
 
+(defn draw-city []
+  (ugraph->png "city" *congestion-city-nodes* *congestion-city-edges*))
+
 (defn new-game []
   (def ^:dynamic *congestion-city-edges* (make-city-edges))
   (def ^:dynamic *congestion-city-nodes* (make-city-nodes *congestion-city-edges*))
   (def ^:dynamic *player-pos* (find-empty-node))
   (def ^:dynamic *visited-nodes* (list *player-pos*))
-  ;(draw-city)
-  )
+  (draw-city))
+
+
+

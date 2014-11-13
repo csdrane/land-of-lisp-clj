@@ -22,7 +22,7 @@
 (def *max-label-length* 30)
 
 (defn dot-label [exp]
-  (if exp
+  (if-not  (empty? exp)
     (let [s (print-str exp)]
       (if (> (count s) *max-label-length*)
         (str (subs s 0 (- *max-label-length* 3)) "...")
@@ -58,23 +58,24 @@
              "}"))
 
 (defn uedges->dot [edges]
-  (mapcat identity (letfn [(maplist 
-             ([s] (maplist identity s))
-             ([f s] (when-let [s (seq s)]
-                      (lazy-seq (cons (f s)
-                                      (maplist f (next s)))))))] 
-     (maplist (fn [lst] 
-                (map (fn [edge]
-                       (if-not (some #(= % (first edge)) (map first (rest lst)))
-                         (do (fresh-line)
-                             (print-str (dot-name ((comp first first) lst))
-                                        "--"
-                                        (dot-name (first edge))
-                                        "[label=\""
-                                        (dot-label (rest edge))
-                                        "\"];"))))
-                     ((comp rest first) lst)))
-              edges))))
+  (mapcat identity 
+          (letfn [(maplist 
+                    ([s] (maplist identity s))
+                    ([f s] (when-let [s (seq s)]
+                             (lazy-seq (cons (f s)
+                                             (maplist f (next s)))))))] 
+            (maplist (fn [lst] 
+                       (map (fn [edge]
+                              (if-not (some #(= % (first edge)) (map first (rest lst)))
+                                (do (fresh-line)
+                                    (print-str (dot-name ((comp first first) lst))
+                                               "--"
+                                               (dot-name (first edge))
+                                               "[label=\""
+                                               (dot-label (rest edge))
+                                               "\"];"))))
+                            ((comp rest first) lst)))
+                     edges))))
 
 (defn ugraph->dot [nodes edges]
   (print-str "graph{"
@@ -97,5 +98,3 @@
 
 (defn run []
  (ugraph->png "wizard" *wizard-nodes* *wizard-edges*))
-
-
