@@ -8,7 +8,6 @@
 
 (def *congestion-city-nodes* nil) 
 (def *congestion-city-edges* nil)
-(def *visited-nodes* nil)
 (def *node-num* 30)
 (def *edge-num* 45)
 (def *worm-num* 3)
@@ -146,50 +145,38 @@
 
 (defn find-empty-node []
   (let [x (random-node)]
-    (do (println (some #(when (= (first %) x) %) *congestion-city-nodes*))
+    (do 
       (if (seq (rest (some #(when (= (first %) x) %) *congestion-city-nodes*)))
-       (find-empty-node)
-       x))))
+        (find-empty-node)
+        x))))
 
 (defn draw-city []
   (ugraph->png "city" *congestion-city-nodes* *congestion-city-edges*))
 
-
 (defn known-city-nodes []
   (map (fn [node]
-         (if (some #{node} *visited-nodes*)
+         (if (some #{node} @*visited-nodes*)
            (let [n (some #(when (= node (first %)) %) *congestion-city-nodes*)]
-             (if (= node *player-pos*)
+             (if (= node @*player-pos*)
                (concat n '(*))
                n))
            (list node '?))) 
        (distinct
-        (concat *visited-nodes*
+        (concat @*visited-nodes*
               (mapcat (fn [node]
                         (map first
                              (rest (some #(when (= node (first %)) %) *congestion-city-edges*))))
-                      *visited-nodes*)))))
-
-(map (fn [node] 
-       (if (some #{node} *visited-nodes*)
-         (let [n (some #(when (= node (first %)) %) *congestion-city-nodes*)]
-           (if (= (first node) *player-pos*)
-             (concat n '(*))
-             n))
-         (list node '?))) 
-     (mapcat (fn [node] (map first
-                             (rest (some #(when (= node (first %)) %) *congestion-city-edges*)))) 
-             *visited-nodes*))
+                      @*visited-nodes*)))))
 
 (defn known-city-edges []
   (map (fn [node]
          (cons node 
                (map (fn [x]
-                      (if (some #(= % (first x)) *visited-nodes*)
+                      (if (some #(= % (first x)) @*visited-nodes*)
                         x
                         (list (first x))))
                     (rest (some #(when (= node (first %)) %) *congestion-city-edges*)))))
-       *visited-nodes*))
+       @*visited-nodes*))
 
 (defn draw-known-city []
   (ugraph->png "known-city" (known-city-nodes) (known-city-edges)))
@@ -198,15 +185,15 @@
   (def ^:dynamic *congestion-city-edges* (make-city-edges))
   (def ^:dynamic *congestion-city-nodes* (make-city-nodes *congestion-city-edges*))
   (def ^:dynamic *player-pos* (atom (find-empty-node)))
-  (def ^:dynamic *visited-nodes* (atom (list *player-pos*)))
+  (def ^:dynamic *visited-nodes* (atom (list @*player-pos*)))
   (draw-city)
   (draw-known-city))
 
 (defn handle-new-place [edge pos charging]
-  (let [node (assoc pos *congestion-city-nodes*)
+  (let [node (some #(when (= pos %)) *congestion-city-nodes*)
         has-worm (and (some #(= % 'glow-worm) node)
-                      (not (some #(= % pos) *visited-nodes*)))]
-    (swap! *visited-nodes* cons pos)
+                      (not (some #(= % pos) @*visited-nodes*)))]
+    (swap! *visited-nodes* conj pos)
     (reset! *player-pos* pos)
     (draw-known-city)
     (cond
@@ -214,14 +201,14 @@
      (some #(= % 'wumpus) node) (if charging
                                   (println "You found the Wumpus!")
                                   (println "You ran into the Wumpus")) 
-     (charging (println "You wasted your last bullet. Game Over."))
-     (has-worm (let [new-pos (random-node)]
-                 (println "You ran into a Glow Worm Gang! You're now at " new-pos)
-                 (handle-new-place nil new-pos nil))))))
+     charging (println "You wasted your last bullet. Game Over.")
+     has-worm (let [new-pos (random-node)]
+                (println "You ran into a Glow Worm Gang! You're now at " new-pos)
+                (handle-new-place nil new-pos nil)))))
 
 (defn handle-direction [pos charging] 
-  (if-let [edge (some (fn [x] (when (= x pos) x) 
-                        (rest (some #(when (= % *player-pos*) %) *congestion-city-edges*))))]
+  (if-let [edge (some #(when (= (first %) pos) %)
+                 (rest (some #(when (= (first %) @*player-pos*) %) *congestion-city-edges*)))]
     (handle-new-place edge pos charging) 
     (println "That location does not exist!")))
 
@@ -229,8 +216,5 @@
   (handle-direction pos nil))
 
 (defn charge [pos]
-  (handle-direction pos t))
+  (handle-direction pos true))
 
-(new-game)
-(known-city-nodes)
-(known-city-edges)
