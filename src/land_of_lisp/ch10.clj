@@ -8,6 +8,7 @@
 (def *height* 30)
 (def *jungle* '(45 10 10 10))
 (def *plant-energy* 80)
+(def *reproduction-energy* 200)
 (def ^:dynamic *plants* (atom #{}))
 (def ^:dynamic *animals* (atom []))
 
@@ -18,7 +19,7 @@
               :y (bit-shift-right *height* 1)
               :energy 1000
               :dir 0
-              :genes (list (map (fn [_] (inc (rand-int 10))) (range 8)))})
+              :genes (vec (map (fn [_] (inc (rand-int 10))) (range 8)))})
 
 (defn random-plant [left top width height]
   (let [pos (list (+ left (rand-int width)) 
@@ -49,5 +50,43 @@
                                     *height*)
                                  *height*)})
     (swap! animal update-in [:energy] dec)))
+
+(defn turn [animal]
+  (let [x (rand-int (apply + (:genes @animal)))]
+    (letfn [(angle [genes x]
+              (let [xnu (- x (first genes))]
+                (if (< xnu 0)
+                  0
+                  (inc (angle (rest genes) xnu)))))]
+      (swap! animal merge {:dir
+                           (mod (+ (:dir @animal) 
+                                   (angle (:genes @animal) x))
+                                8)}))))
+
+(defn eat [animal]
+  (let [pos (list (:x animal) (:y animal))]
+    (when (pos *plants*)
+      (swap! animal #(+ % *plant-energy*))
+      (swap! *plants* dissoc pos))))
+
+(defn reproduce [animal]
+  (let [e (:energy @animal)]
+    (when (>= e *reproduction-energy*)
+      (swap! animal #(update-in % [:energy] bit-shift-right 1))
+      (let [animal-nu @animal
+            genes (:genes @animal)
+            mutation (rand-int 8)
+            mutated-genes (assoc genes mutation (max 1 (+ (nth genes mutation) (rand-int 3) -1)))]
+        (swap! *animals* conj (atom (merge animal-nu {:genes mutated-genes})))))))
+
+(defn update-world []
+  (swap! *animals* (fn [animals] (vec (filter #(> (:energy @%) 0) animals))))
+  (doall (map (fn [animal] 
+                (turn animal)
+                (move animal)
+                (eat animal)
+                (reproduce animal))
+              *animals*)
+         (add-plants)))
 
 
