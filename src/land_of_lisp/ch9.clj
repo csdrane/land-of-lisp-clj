@@ -13,27 +13,30 @@
 (def ^:dynamic *monster-builders* (atom []))
 (def ^:dynamic *monster-num* 12)
 
+(defn randval [n]
+  (inc (rand-int (max 1 n))))
+
 (defn make-monster []
-  {:health (atom (rand-int 10))})
+  {:health (atom (randval 10))})
 
 (defn make-orc []
   (merge (make-monster) {:monster-type "Orc",
-                         :club-level (rand-int 8)}))
+                         :club-level (randval 8)}))
 
 (defn make-hydra []
   (merge (make-monster) {:monster-type "Hydra"}))
 
 (defn make-slime-mold []
   (merge (make-monster) {:monster-type "Slime-Mold",
-                         :sliminess (rand-int 5)}))
+                         :sliminess (randval 5)}))
 
 (defn make-brigand []
   (merge (make-monster) {:monster-type "Brigand"}))
 
-(swap! *monster-builders* conj (make-orc))
-(swap! *monster-builders* conj (make-hydra))
-(swap! *monster-builders* conj (make-slime-mold))
-(swap! *monster-builders* conj (make-brigand))
+(swap! *monster-builders* conj make-orc)
+(swap! *monster-builders* conj make-hydra)
+(swap! *monster-builders* conj make-slime-mold)
+(swap! *monster-builders* conj make-brigand)
 
 (defn monster-type [m]
   (m :monster-type))
@@ -49,63 +52,66 @@
 
 (defmulti monster-show (fn [m] (monster-type m)))
 (defmethod monster-show "Orc" [m]
-  (println "A wicked orc with a level" (:club-level m) "club"))
+  (str "A wicked orc with a level " (:club-level m) " club."))
 
 (defmethod monster-show "Hydra" [m]
-  (println "A malicious hydra with" (monster-health m) "heads."))
+  (str "A malicious hydra with " (monster-health m) " heads."))
 
 (defmethod monster-show "Slime-Mold" [m]
-  (println "A slime mold with a sliminess of" (:sliminess m)))
+  (str "A slime mold with a sliminess of " (:sliminess m) "."))
 
 (defmethod monster-show :default [m]
-  (println "A fierce" (monster-type m)))
+  (str "A fierce " (monster-type m) "."))
 
 (defmulti monster-hit (fn [m _] (monster-type m)))
 (defmethod monster-hit "Hydra" [m x]
-  (swap! (monster-health m) #(- @% x))
+  (swap! (:health m) #(- % x))
   (if (monster-dead m)
     (println "The corpse of the fully decapitated and decapacitated hydra falls to the floor!")
     (println "You lop off" x "of the hydra's heads!")))
 
 (defmethod monster-hit :default [m x]
-  (swap! (monster-health m) #(- % x))
+  (swap! (:health m) #(- % x))
   (if (monster-dead m)
     (println "You killed the" (monster-type m) "! ")
     (println "You hit the" (monster-type m) ", knocking off" x "health points! ")))
 
 (defmulti monster-attack (fn [m] (monster-type m)))
 (defmethod monster-attack "Orc" [m]
-  (let [x (rand-int (:club-level m))]
+  (let [x (randval (:club-level m))]
     (println "An orc swings his club at you and knocks off" x "of your health points. ")
     (swap! *player-health* #(- % x))))
 
 (defmethod monster-attack "Hydra" [m]
-  (let [x (rand-int (bit-shift-right (monster-health m) 1))]
+  (let [x (randval (bit-shift-right (monster-health m) 1))]
     (println "A hydra attacks you with" x "of its heads! It also grows back one more head!")
-    (swap! (monster-health m) inc)
+    (swap! (:health m) inc)
     (swap! *player-health* #(- % x))))
 
 (defmethod monster-attack "Slime-Mold" [m]
-  (let [x (rand-int (:sliminess m))]
+  (let [x (randval (:sliminess m))]
     (println "A slime mold wraps around your legs and decreases your agility by"
              x "!")
     (swap! *player-agility* #(- % x))
-    (when (zero? (rand-int 2))
+    (when (zero? (randval 2))
       (println "It also squirts in your face, taking away a health point!")
       (swap! *player-health* dec))))
 
 (defmethod monster-attack "Brigand" [m]
   (let [x (max @*player-health* @*player-agility* @*player-strength*)]
     (cond
-     (= x @*player-health*) (do 
-                             (println "A brigand hits you with his slingshot, taking off 2 health points!")
-                             (swap! *player-health* #(- % 2)))
-     (= x @*player-agility*) (do 
-                              (println "A brigand catches your leg with his whip, taking off 2 agility points!")
-                              (swap! *player-agility* #(- % 2)))
-     (= x @*player-strength*) (do 
-                               (println "A brigand cuts your arm with his whip, taing off 2 strength points!")
-                               (swap! *player-strength* #(- % 2))))))
+     (= x @*player-health*) 
+     (do 
+       (println "A brigand hits you with his slingshot, taking off 2 health points!")
+       (swap! *player-health* #(- % 2)))
+     (= x @*player-agility*) 
+     (do 
+       (println "A brigand catches your leg with his whip, taking off 2 agility points!")
+       (swap! *player-agility* #(- % 2)))
+     (= x @*player-strength*)
+     (do 
+       (println "A brigand cuts your arm with his whip, taing off 2 strength points!")
+       (swap! *player-strength* #(- % 2))))))
 
 (defn init-player []
      (reset! *player-health* 30)
@@ -123,24 +129,26 @@
 
 (defn init-monsters []
   (reset! *monsters* 
-          (vec (map (fn [_] (nth @*monster-builders* (rand-int (count @*monster-builders*))))
+          (vec (map (fn [_] ((nth @*monster-builders* (rand-int (count @*monster-builders*)))))
                     (range *monster-num*)))))
 
 (defn show-monsters []
   (fresh-line)
   (println "Your foes:")
-  (println @*monsters*)
-  (dotimes [x (count @*monsters*)]
-    ; without doall, printlns won't evaluate due to map's laziness
+  #_(println @*monsters*)
+  (let [x (atom 0)
+        sb (new StringBuilder)]
+; without doall, printlns won't evaluate due to map's laziness
     (doall (map (fn [m] 
-            (let [m (@*monsters* x)] 
-              (fresh-line)
-              (println "    " x ". ")
-              (if (monster-dead m)
-                (println "** dead **")
-                (do (println "Health=" (monster-health m)) ") "
-                    (monster-show m))))) 
-          @*monsters*))))
+                  (let [m (@*monsters* @x)] 
+                    (.append sb \newline)
+                    (.append sb (str "    " (swap! x inc) ". "))
+                    (if (monster-dead m)
+                      (.append sb "** dead **")
+                      (do (.append sb (str "(Health= " (monster-health m) ") " ))
+                          (.append sb (monster-show m)))))) 
+                @*monsters*))
+    (println (.toString sb))))
 
 (defn random-monster []
   (let [m (@*monsters* (rand-int (count @*monsters*)))]
@@ -151,11 +159,11 @@
 (defn pick-monster []
   (fresh-line)
   (println "Monster #: ")
-  (let [x (read)]
-    (if-not (and (integer? x) (>= x 1) (<= x *monster-num*))
+  (let [x (Integer/parseInt (read-line))]
+    (if-not (and (>= x 1) (<= x *monster-num*))
       (do (println "That is not a valid monster number.")
           (pick-monster))
-      (let [m (*monsters* (dec x))]
+      (let [m (@*monsters* (dec x))]
         (if (monster-dead m)
           (do (println "That monster is already dead.")
               (pick-monster))
@@ -164,16 +172,16 @@
 (defn player-attack []
   (fresh-line)
   (println "Attack style: [s]tab [d]ouble swing [r]oundhouse:")
-  (case (read)
-    ("s" (monster-hit (pick-monster)
-                    (+ 2 (rand-int (bit-shift-right @*player-strength* 1)))))
-    ("d" (let [x (rand-int (Math/floor (/ @*player-strength* 6)))]
-         (println "Your double swing has a strength of " x)
-         (fresh-line)
-         (monster-hit (pick-monster) x)
-         (when-not (monsters-dead)
-           (monster-hit (pick-monster) x))))
-    (dotimes [x (inc (rand-int (Math/floor (/ @*player-strength* 3))))]
+  (case (read-line)
+    "s" (monster-hit (pick-monster)
+                     (+ 2 (randval (bit-shift-right @*player-strength* 1))))
+    "d" (let [x (randval (Math/floor (/ @*player-strength* 6)))]
+          (println "Your double swing has a strength of " x)
+          (fresh-line)
+          (monster-hit (pick-monster) x)
+          (when-not (monsters-dead)
+            (monster-hit (pick-monster) x)))
+    (dotimes [x (inc (randval (Math/floor (/ @*player-strength* 3))))]
       (when-not (monsters-dead)
         (monster-hit (random-monster) 1)))))
 
@@ -185,8 +193,9 @@
         (show-monsters)
         (player-attack)))
     (fresh-line)
-    (map (fn [m] (or (monster-dead m) (monster-attack m)))
-         *monsters*)
+    ; again, need do-loop or else side effects won't be executed by map.
+    (doall (map (fn [m] (or (monster-dead m) (monster-attack m)))
+          @*monsters*))
     (game-loop)))
 
 (defn orc-battle []
