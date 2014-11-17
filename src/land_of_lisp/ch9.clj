@@ -126,20 +126,21 @@
           (vec (map (fn [_] (nth @*monster-builders* (rand-int (count @*monster-builders*))))
                     (range *monster-num*)))))
 
-;; Would like to factor out atom. `reduce` somehow?
 (defn show-monsters []
   (fresh-line)
   (println "Your foes:")
-  (let [x (atom 0)]
-    (map (fn [m] 
-           (let [m (@*monsters* @x)] 
-             (fresh-line)
-             (println "    " (swap! x inc) ". ")
-             (if (monster-dead m)
-               (println "** dead **")
-               (do (println "Health=" (monster-health m)) ") "
-                   (monster-show m))))) 
-         @*monsters*)))
+  (println @*monsters*)
+  (dotimes [x (count @*monsters*)]
+    ; without doall, printlns won't evaluate due to map's laziness
+    (doall (map (fn [m] 
+            (let [m (@*monsters* x)] 
+              (fresh-line)
+              (println "    " x ". ")
+              (if (monster-dead m)
+                (println "** dead **")
+                (do (println "Health=" (monster-health m)) ") "
+                    (monster-show m))))) 
+          @*monsters*))))
 
 (defn random-monster []
   (let [m (@*monsters* (rand-int (count @*monsters*)))]
