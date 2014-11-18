@@ -2,7 +2,8 @@
 ;; Translated into Clojure from Common Lisp
 ;; http://landoflisp.com/evolution.lisp
 
-(ns land-of-lisp.ch10)
+(ns land-of-lisp.ch10
+  (:use[clojure.pprint :only (fresh-line)]))
 
 (def *width* 100)
 (def *height* 30)
@@ -89,4 +90,25 @@
               *animals*)
          (add-plants)))
 
+(defn draw-world [] 
+  (let [sb (new StringBuilder)] 
+    (loop [y 0]
+      (when (<= y *height*) 
+        (.append sb (str "|" 
+                         (when (= (loop [x 0] 
+                                    (when (<= x *width*) 
+                                      (str (cond 
+                                            (some (fn [animal]
+                                                    (and (= (:x @animal) x)
+                                                         (= (:y @animal) y))) 
+                                                  @*animals*)
+                                            \M
+                                            (get (list x y) @*plants*) \*
+                                            :else \space))
+                                      (recur (inc x))))
+                                  :continue))
+                         "|" \newline))
+        (recur (inc y))))
+    (println (.toString sb))))
 
+(draw-world)
