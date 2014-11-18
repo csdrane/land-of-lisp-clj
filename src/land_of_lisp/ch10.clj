@@ -94,21 +94,20 @@
   (let [sb (new StringBuilder)] 
     (loop [y 0]
       (when (<= y *height*) 
-        (.append sb (str "|" 
-                         (when (= (loop [x 0] 
-                                    (when (<= x *width*) 
-                                      (str (cond 
-                                            (some (fn [animal]
-                                                    (and (= (:x @animal) x)
-                                                         (= (:y @animal) y))) 
-                                                  @*animals*)
-                                            \M
-                                            (get (list x y) @*plants*) \*
-                                            :else \space))
-                                      (recur (inc x))))
-                                  :continue))
-                         "|" \newline))
+        (.append sb "|") 
+        (when (= (loop [x 0] 
+                   (when (<= x *width*) 
+                     (.append sb (cond 
+                                  (some (fn [animal]
+                                          (and (= (:x @animal) x)
+                                               (= (:y @animal) y))) 
+                                        @*animals*)
+                                  \M
+                                  (get (list x y) @*plants*) \*
+                                  :else \space))
+                     (recur (inc x))))
+                 :continue))
+        (.append sb (str  "|" \newline))
         (recur (inc y))))
     (println (.toString sb))))
 
-(draw-world)
