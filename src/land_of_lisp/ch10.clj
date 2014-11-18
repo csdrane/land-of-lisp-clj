@@ -3,7 +3,7 @@
 ;; http://landoflisp.com/evolution.lisp
 
 (ns land-of-lisp.ch10
-  (:use[clojure.pprint :only (fresh-line)]))
+  (:use[clojure.pprint :only (fresh-line pprint)]))
 
 (def *width* 100)
 (def *height* 30)
@@ -65,10 +65,10 @@
                                 8)}))))
 
 (defn eat [animal]
-  (let [pos (list (:x animal) (:y animal))]
-    (when (pos *plants*)
-      (swap! animal #(+ % *plant-energy*))
-      (swap! *plants* dissoc pos))))
+  (let [pos (list (:x @animal) (:y @animal))]
+    (when (@*plants* pos)
+      (swap! animal update-in [:energy] #(+ % *plant-energy*))
+      (swap! *plants* disj pos))))
 
 (defn reproduce [animal]
   (let [e (:energy @animal)]
@@ -87,27 +87,42 @@
                 (move animal)
                 (eat animal)
                 (reproduce animal))
-              *animals*)
-         (add-plants)))
+              @*animals*))
+  (add-plants))
 
 (defn draw-world [] 
   (let [sb (new StringBuilder)] 
     (loop [y 0]
       (when (<= y *height*) 
         (.append sb "|") 
-        (when (= (loop [x 0] 
-                   (when (<= x *width*) 
-                     (.append sb (cond 
-                                  (some (fn [animal]
-                                          (and (= (:x @animal) x)
-                                               (= (:y @animal) y))) 
-                                        @*animals*)
-                                  \M
-                                  (get (list x y) @*plants*) \*
-                                  :else \space))
-                     (recur (inc x))))
-                 :continue))
+        (loop [x 0] 
+          (when (<= x *width*) 
+            (.append sb (cond 
+                         (some (fn [animal]
+                                 (and (= (:x @animal) x)
+                                      (= (:y @animal) y))) 
+                               @*animals*)
+                         \M
+                         (@*plants* (list x y)) \*
+                         :else \space))
+            (recur (inc x))))
+        :continue
         (.append sb (str  "|" \newline))
         (recur (inc y))))
     (println (.toString sb))))
+
+(defn evolution []
+  (draw-world)
+  (fresh-line)
+  (let [s (read-line)]
+    (cond 
+     (= s "quit") ()
+     :else (let [x (try (Integer/parseInt s) (catch Exception e 1))]
+             (if x
+               (dotimes [i x]
+                 (update-world)
+                 (if (zero? (mod i 1000))
+                   (println \.))
+                 (update-world)))
+             (evolution)))))
 
