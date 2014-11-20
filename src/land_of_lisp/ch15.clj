@@ -7,7 +7,7 @@
 (def *board-hexnum* (* *board-size* *board-size*))
 
 (defn board-set [board]
-  (vec board))
+  board)
 
 (defn gen-board []
   (loop [n 0
@@ -22,15 +22,17 @@
 
 (defn draw-board [board]
   (doall 
-   (for [y (range *board-size*)
-         x (range *board-size*)] 
-     (letfn [(hex [] 
+   (for [y (range *board-size*)] 
+     (letfn [(hex [x] 
                (nth board (+ x (* *board-size* y))))] 
-       (do (fresh-line)
-           (dotimes [_ (- *board-size* y)]
-             (print "  "))
-           (print (format "%s-%s " (player-letter (first (hex)))
-                    (second (hex)))))))))
+       (do (let [sb (new StringBuilder)] 
+             (dotimes [_ (- *board-size* y)]
+               (.append sb "  "))
+             (dotimes [x *board-size*]
+               (.append sb (format "%s-%s " (player-letter (first (hex x)))
+                                   (second (hex x)))))
+             (print (.toString sb))
+             (fresh-line)))))))
 
 (declare game-tree)
 
@@ -104,19 +106,18 @@
                           (attacking-moves board player spare-dice))))
 
 (defn print-info [tree]
-  (format "current place =")
+  (println "board = " tree)
   (fresh-line)
   (println (format "current player = %s" (player-letter (first tree))))
   (draw-board ((comp first rest) tree)))
 
 (defn handle-human [tree]
+  (print "choose your move: ")
   (fresh-line)
-  (print "choose your move:")
   (let [moves ((comp first rest rest) tree)]
     (doall (for [n (range (count moves))]
        (let [move (nth moves n)
              action (first move)]
-         (fresh-line)
          (println (format "%s. " (inc n))
                   (if action
                     (format "%s -> %s" (first action) ((comp first rest) action))
