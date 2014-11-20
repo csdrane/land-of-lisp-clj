@@ -110,7 +110,6 @@
                           (attacking-moves board player spare-dice))))
 
 (defn print-info [tree]
-  (println "board = " tree)
   (fresh-line)
   (println (format "current player = %s" (player-letter (first tree))))
   (draw-board ((comp first rest) tree)))
@@ -118,22 +117,22 @@
 (defn handle-human [tree]
   (print "choose your move: ")
   (fresh-line)
-  (let [moves ((comp first rest rest) tree)]
-    (doall (for [n (range (count moves))]
-       (let [move (nth moves n)
-             action (first move)]
-         (println (format "%s. " (inc n))
-                  (if action
-                    (format "%s -> %s" (first action) ((comp first rest) action))
-                    "end turn")))))
+  (let [moves ((comp first rest rest) tree)
+        ctr (atom 0)]
+    (doseq [move moves]
+      (let [action (first move)]
+        (println (format "%s. " (swap! ctr inc))
+                 (if (seq action)
+                   (format "%s -> %s" (first action) ((comp first rest) action))
+                   "end turn"))))
     (fresh-line) 
-    (comp first rest (nth moves (dec (Integer/parseInt (read-line)))))))
+    ((comp first rest) (nth moves (dec (Integer/parseInt (read-line)))))))
 
 (defn winners [board]
   (let [tally (map first board)
         totals (frequencies tally)
         best (apply max (vals totals))]
-    (map keys
+    (map first
          (filter #(-> % val (= best)) totals))))
 
 (defn announce-winner [board]
@@ -145,6 +144,6 @@
 
 (defn play-vs-human [tree]
   (print-info tree)
-  (if ((comp first rest rest) tree)
+  (if ((comp seq first rest rest) tree)
     (play-vs-human (handle-human tree))
     (announce-winner ((comp first rest) tree))))
