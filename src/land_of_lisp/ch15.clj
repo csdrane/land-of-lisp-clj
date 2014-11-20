@@ -1,3 +1,7 @@
+;; Land of Lisp, ch. 15
+;; Translated into Clojure from Common Lisp
+;; http://landoflisp.com/dice_of_doom_v1.lisp
+
 (ns land-of-lisp.ch15
   (:use[clojure.pprint :only (fresh-line)]))
 
