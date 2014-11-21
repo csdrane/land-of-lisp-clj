@@ -72,7 +72,7 @@
                   (= pos dst) (list player (dec dice))
                   :else hex)))))
 
-(defn neighbors [pos]
+(defn neighbors* [pos]
   (let [up (- pos *board-size*)
         down (+ pos *board-size*)]
     (filter (fn [p] (and (>= p 0) 
@@ -81,6 +81,8 @@
                             (if-not (zero? (mod pos *board-size*)) (list (dec up) (dec pos)))
                             (if-not (zero? (mod (inc pos) *board-size*)) (list (inc pos) (inc down))))]
               p))))
+
+(def neighbors (memoize neighbors*))
 
 (defn attacking-moves [board cur-player spare-dice]
   (letfn [(player [pos]
@@ -101,13 +103,15 @@
                         (neighbors src))))
             (range *board-hexnum*))))
 
-(defn game-tree [board player spare-dice first-move] 
+(defn game-tree* [board player spare-dice first-move] 
   (list player board
         (add-passing-move board
                           player
                           spare-dice
                           first-move
                           (attacking-moves board player spare-dice))))
+
+(def game-tree (memoize game-tree*))
 
 (defn print-info [tree]
   (fresh-line)
@@ -151,7 +155,7 @@
 
 (declare get-ratings)
 
-(defn rate-position [tree player]
+(defn rate-position* [tree player]
   (let [moves ((comp first rest rest) tree)]
     (if (seq moves) 
       (apply (if (= (first tree) player)
@@ -163,13 +167,14 @@
           (/ 1 (count w))
           0)))))
 
+(def rate-position (memoize rate-position*))
+
 (defn get-ratings [tree player]
   (map (fn [move] (rate-position ((comp first rest) move) player))
        ((comp first rest rest) tree)))
 
 (defn handle-computer [tree]
   (let [ratings (get-ratings tree (first tree))]
-    (println "ratings: " ratings)
     ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings))))))
 
 (defn play-vs-computer [tree]
