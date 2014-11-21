@@ -7,7 +7,7 @@
 
 (def *num-players* 2)
 (def *max-dice* 3)
-(def *board-size* 2)
+(def *board-size* 3)
 (def *board-hexnum* (* *board-size* *board-size*))
 
 (defn board-set [board]
@@ -139,11 +139,43 @@
   (fresh-line)
   (let [w (winners board)]
     (if (> (count w) 1)
-      (format "The game is a tie between %s" (map player-letter w)) 
-      (format "The winner is %s" (player-letter (first w))))))
+      ; Can't use str to realize LazySeq.
+      (println (format "The game is a tie between %s" (apply pr-str (map player-letter w)))) 
+      (println (format "The winner is %s" (player-letter (first w)))))))
 
 (defn play-vs-human [tree]
   (print-info tree)
   (if ((comp seq first rest rest) tree)
     (play-vs-human (handle-human tree))
     (announce-winner ((comp first rest) tree))))
+
+(declare get-ratings)
+
+(defn rate-position [tree player]
+  (let [moves ((comp first rest rest) tree)]
+    (if (seq moves) 
+      (apply (if (= (first tree) player)
+               max
+               min)
+             (get-ratings tree player))
+      (let [w (winners ((comp first rest) tree))]
+        (if (some #(= % player) w)
+          (/ 1 (count w))
+          0)))))
+
+(defn get-ratings [tree player]
+  (map (fn [move] (rate-position ((comp first rest) move) player))
+       ((comp first rest rest) tree)))
+
+(defn handle-computer [tree]
+  (let [ratings (get-ratings tree (first tree))]
+    (println "ratings: " ratings)
+    ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings))))))
+
+(defn play-vs-computer [tree]
+  (print-info tree)
+  (cond
+   (empty? ((comp first rest rest) tree)) (announce-winner ((comp first rest) tree))
+   (zero? (first tree)) (play-vs-computer (handle-human tree))
+   :else (play-vs-computer (handle-computer tree))))
+
