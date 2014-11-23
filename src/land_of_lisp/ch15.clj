@@ -40,6 +40,7 @@
 
 (declare game-tree)
 
+; TODO tail call optimization (p. 333)
 (defn add-new-dice [board player spare-dice] 
   (letfn [(f [lst n]
             (cond 
