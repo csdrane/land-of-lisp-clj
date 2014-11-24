@@ -1,13 +1,13 @@
 ;; Land of Lisp, ch. 18
 ;; Translated into Clojure from Common Lisp
-;; http://landoflisp.com/dice_of_doom_v1.lisp
+;; http://landoflisp.com/dice_of_doom_v2.lisp
 
 (ns land-of-lisp.ch18
   (:use[clojure.pprint :only (fresh-line)]))
 
 (def *num-players* 2)
 (def *max-dice* 3)
-(def *board-size* 4)
+(def *board-size* 5)
 (def *board-hexnum* (* *board-size* *board-size*))
 
 (defn board-set [board]
@@ -185,10 +185,14 @@
                                  (limit-tree-depth ((comp first rest) move) (dec depth))))
                 ((comp first rest rest) tree))))))
 
+(declare ab-get-ratings-max)
+
 (defn handle-computer [tree]
   (lazy-seq 
-   (let [ratings (get-ratings (limit-tree-depth tree *ai-level*)
-                              (first tree))]
+   (let [ratings (ab-get-ratings-max (limit-tree-depth tree *ai-level*)
+                              (first tree)
+                              Integer/MAX_VALUE
+                              Integer/MIN_VALUE)]
      ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings)))))))
 
 (defn play-vs-computer [tree]
@@ -228,3 +232,40 @@
                                                     pos
                                                     board)))
         sum))))
+
+(defn ab-rate-position [tree player upper-limit lower-limit] 
+  (let [moves ((comp first rest rest) tree)]
+    (if-not (empty? moves)
+      (if (= (first tree) player)
+        (apply max (ab-get-ratings-max tree player
+                                       upper-limit
+                                       lower-limit)) 
+        (apply min (ab-get-ratings-min tree
+                                       player
+                                       upper-limit
+                                       lower-limit)))
+      (score-board ((comp first rest) tree) player))))
+
+(defn ab-get-ratings-max [tree player upper-limit lower-limit]
+  (letfn [(f [moves lower-limit]
+            (when-not (empty? moves)
+              (let [x (ab-rate-position ((comp first rest first) moves)
+                                        player
+                                        upper-limit
+                                        lower-limit)]
+                (if (>= x upper-limit)
+                  (list x)
+                  (cons x (f (rest moves) (max x lower-limit)))))))]
+    (f ((comp first rest rest) tree) lower-limit)))
+
+(defn ab-get-ratings-min [tree player upper-limit lower-limit]
+  (letfn [(f [moves upper-limit]
+            (when-not (empty? moves)
+              (let [x (ab-rate-position ((comp first rest first) moves)
+                                        player
+                                        upper-limit
+                                        lower-limit)]
+                (if (<= x lower-limit)
+                  (list x)
+                  (cons x (f (rest moves) (min x upper-limit)))))))]
+    (f ((comp first rest rest) tree) upper-limit)))
