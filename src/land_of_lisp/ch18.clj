@@ -156,7 +156,7 @@
     (play-vs-human (handle-human tree))
     (announce-winner ((comp first rest) tree))))
 
-(declare get-ratings)
+(declare get-ratings score-board)
 
 (defn rate-position* [tree player]
   (let [moves ((comp first rest rest) tree)]
@@ -165,10 +165,7 @@
                max
                min)
              (get-ratings tree player))
-      (let [w (winners ((comp first rest) tree))]
-        (if (some #(= % player) w)
-          (/ 1 (count w))
-          0)))))
+      (score-board ((comp first rest) tree) player))))
 
 (def rate-position (memoize rate-position*))
 
@@ -200,3 +197,34 @@
    (empty? ((comp first rest rest) tree)) (announce-winner ((comp first rest) tree))
    (zero? (first tree)) (play-vs-computer (handle-human tree))
    :else (play-vs-computer (handle-computer tree))))
+
+(defn threatened [pos board]
+  (let [hex (nth board pos)
+        player (first hex)
+        dice ((comp first rest) hex)]
+    (loop [ns (neighbors pos)]
+      (let [n (first ns)
+            nhex (nth board n) 
+            nplayer (first nhex) 
+            ndice ((comp first rest) nhex)]
+        (cond
+         (empty? (rest ns)) nil
+         (and (not (= player nplayer)) (> ndice dice)) true
+         :else (recur (rest ns)))))))
+
+(defn score-board [board player]
+  (letfn [(score [position pos board] 
+            (if (= (first position) player)
+              (if (threatened pos board)
+                1 
+                2)
+              -1))] 
+    (loop [positions board
+           pos 0
+           sum 0]
+      (if (seq positions)
+        (recur (rest positions) (inc pos) (+ sum
+                                             (score (first positions)
+                                                    pos
+                                                    board)))
+        sum))))
