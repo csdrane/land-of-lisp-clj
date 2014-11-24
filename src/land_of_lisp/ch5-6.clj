@@ -6,7 +6,7 @@
   (:require [clojure.string :as str]))
 
 (def ^:dynamic *location* 'living-room)
-(def *allowed-commands* '(look walk pickup inventory))
+(def ^:dynamic *allowed-commands* (atom '(look walk pickup inventory)))
 (def *objects* '(whiskey bucket frog chain))
 
 (def *nodes* {'living-room '(you are in the living-room.
@@ -76,7 +76,7 @@
   (read-string (str \( (read-line) \))))
 
 (defn game-eval [sexp]
-  (if (some #(= % (first sexp)) *allowed-commands*)
+  (if (some #(= % (first sexp)) (deref *allowed-commands*))
     (apply (resolve (first sexp)) (rest sexp))
     '(i do not know that command.)))
 
@@ -91,6 +91,3 @@
     (if-not (= (first cmd) 'quit) 
       (do (game-print (game-eval cmd))
           (game-repl)))))
-
-
-
