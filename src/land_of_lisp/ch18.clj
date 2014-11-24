@@ -7,7 +7,7 @@
 
 (def *num-players* 2)
 (def *max-dice* 3)
-(def *board-size* 3)
+(def *board-size* 4)
 (def *board-hexnum* (* *board-size* *board-size*))
 
 (defn board-set [board]
@@ -176,9 +176,23 @@
   (map (fn [move] (rate-position ((comp first rest) move) player))
        ((comp first rest rest) tree)))
 
+(def *ai-level* 4)
+
+(defn limit-tree-depth [tree depth]
+  (lazy-seq 
+   (list (first tree)
+         ((comp first rest) tree)
+         (if (zero? depth)
+           nil
+           (map (fn [move] (list (first move)
+                                 (limit-tree-depth ((comp first rest) move) (dec depth))))
+                ((comp first rest rest) tree))))))
+
 (defn handle-computer [tree]
-  (let [ratings (get-ratings tree (first tree))]
-    ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings))))))
+  (lazy-seq 
+   (let [ratings (get-ratings (limit-tree-depth tree *ai-level*)
+                              (first tree))]
+     ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings)))))))
 
 (defn play-vs-computer [tree]
   (print-info tree)
@@ -186,4 +200,3 @@
    (empty? ((comp first rest rest) tree)) (announce-winner ((comp first rest) tree))
    (zero? (first tree)) (play-vs-computer (handle-human tree))
    :else (play-vs-computer (handle-computer tree))))
-
