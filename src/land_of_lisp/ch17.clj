@@ -1,6 +1,6 @@
 (ns land-of-lisp.ch17
   (:require [clojure.string :as str])
-  (:use [land-of-lisp.ch5-6]))
+  (:use [land-of-lisp.ch5_6]))
 
 (defn print-tag [name alst closing?]
   (let [sb (new StringBuilder)]
@@ -78,8 +78,6 @@
            (polygon (concat '(0 200) (interleave (range 400) 
                                                  (random-walk 100 400)) '(400 200))
                     (map (fn [_] (rand-int 256)) (range 3))))))))))
-
-(use 'land-of-lisp.ch5-6)
 
 (defn have [object]
   (some #(= % object) (inventory)))

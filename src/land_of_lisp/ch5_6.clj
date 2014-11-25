@@ -2,7 +2,7 @@
 ;; Translated into Clojure from Common Lisp
 ;; http://landoflisp.com/wizards_game.lisp
 
-(ns land-of-lisp.ch5-6 
+(ns land-of-lisp.ch5_6 
   (:require [clojure.string :as str]))
 
 (def ^:dynamic *location* 'living-room)

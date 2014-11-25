@@ -1,14 +1,21 @@
-;; Land of Lisp, ch. 18
+;; Land of Lisp, ch. 19
 ;; Translated into Clojure from Common Lisp
-;; http://landoflisp.com/dice_of_doom_v2.lisp
+;; http://landoflisp.com/dice_of_doom_v3.lisp
 
-(ns land-of-lisp.ch18
-  (:use[clojure.pprint :only (fresh-line)]))
+(ns land-of-lisp.ch19
+  (:use [clojure.pprint :only (fresh-line)])
+  (:use [land-of-lisp.ch17 :only (brightness polygon tag)]))
 
 (def *num-players* 2)
 (def *max-dice* 3)
 (def *board-size* 5)
 (def *board-hexnum* (* *board-size* *board-size*))
+(def *board-width* 1000)
+(def *board-height* 500) 
+(def *board-scale* 64) 
+(def *top-offset* 3)
+(def *dice-scale* 40)
+(def *dot-size* 0.05)
 
 (defn board-set [board]
   board)
@@ -269,3 +276,87 @@
                   (list x)
                   (cons x (f (rest moves) (min x upper-limit)))))))]
     (f ((comp first rest rest) tree) upper-limit)))
+
+(defmacro svg [height width & body]
+  `(tag ~'svg (~'height ~height
+               ~'width ~width
+               ~'xmlns "http://www.w3.org/2000/svg"
+               "xmlns:xlink" "http://www.w3.org/1999/xlink")
+        ~@body))
+
+(defn draw-die-svg [x y col]
+  (let [sb (new StringBuilder)] 
+    (letfn [(calc-pt [pt]
+              (list (+ x (* *dice-scale* (first pt)))
+                    (+ y (* *dice-scale* (second pt)))))
+            (f [pol col]
+              (polygon (mapcat calc-pt pol) col))]
+      (.append sb (print-str (f '((0 -1) (-0.6 -0.75) (0 -0.5) (0.6 -0.75))
+                     (brightness col 40))
+                  (f '((0 -0.5) (-0.6 -0.75) (-0.6 0) (0 0.25))
+                     col)
+                  (f '((0 -0.5) (0.6 -0.75) (0.6 0) (0 0.25))
+                     (brightness col -40))))
+      (doall (map (fn [x y]
+              (.append sb (polygon (mapcat (fn [xx yy]
+                                             (calc-pt (list (+ x (* xx *dot-size*))
+                                                            (+ y (* yy *dot-size*)))))
+                                           '(-1 -1 1 1)
+                                           '(-1 1 1 -1))
+                                   '(255 255 255))))
+            '(-0.05 0.125 0.3 -0.3 -0.125 0.05 0.2 0.2 0.45 0.45 -0.45 -0.2) 
+            '(-0.875 -0.80 -0.725 -0.775 -0.70 -0.625
+                     -0.35 -0.05 -0.45 -0.15 -0.45 -0.05)))
+      (.toString sb))))
+
+(defn draw-tile-svg [x y pos hex xx yy col chosen-tile] 
+  (let [sb (new StringBuilder)]
+    (loop [z 0]
+      (if (< z 2)
+        (do (.append sb 
+                     (polygon (mapcat (fn [pt]
+                                        (list (+ xx (* *board-scale* (first pt)))
+                                              (+ yy (* *board-scale*
+                                                       (+ (second pt) (* (- 1 z) 0.1))))))
+                                      '((-1 -0.2) (0 -0.5) (1 -0.2)
+                                        (1 0.2) (0 0.5) (-1 0.2)))
+                              (if (= pos chosen-tile)
+                                (brightness col 100)
+                                col)))
+            (recur (inc z)))))
+    (loop [z 0] 
+      (if (< z (second hex))
+        (do (.append sb (draw-die-svg (+ xx
+                                         (* *dice-scale*
+                                            0.3
+                                            (if (odd? (+ x y z))
+                                              -0.3 0.3)))
+                                      (- yy (* *dice-scale* z 0.8)) col))
+            (recur (inc z)))))
+    (.toString sb)))
+
+(def *die-colors* '((255 63 63) (63 63 255)))
+
+(defn make-game-link [pos]
+  (format "/game.html?chosen=%s" pos))
+
+(defn draw-board-svg [board chosen-tile legal-tiles]
+  (let [sb (new StringBuilder)]
+    (loop [y 0]
+      (when (< y *board-size*)
+        (loop [x 0]
+          (let [pos (+ x (* *board-size* y))
+                hex (nth board pos)
+                xx (* *board-scale* (+ (* 2 x) (- *board-size* y)))
+                yy (* *board-scale* (+ (* y 0.7) *top-offset*))
+                col (brightness (nth *die-colors* (first hex)) (* -15 (- *board-size* y)))] 
+            #_(println  " x " x " y " y " pos " pos " < (inc pos) *board-size*" (< (inc pos) *board-size*))
+            (if (some #(= % pos) legal-tiles)
+              (.append sb (tag g ()
+                               (tag a ("xlink:href" (make-game-link pos))
+                                    (draw-tile-svg x y pos hex xx yy col chosen-tile)))) 
+              (.append sb (draw-tile-svg x y pos hex xx yy col chosen-tile)))
+            (when (and (< x *board-size*) (< (inc pos) *board-hexnum*))
+              (recur (inc x)))))
+        (recur (inc y))))
+    (.toString sb)))
