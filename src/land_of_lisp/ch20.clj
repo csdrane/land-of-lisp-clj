@@ -18,9 +18,6 @@
 (def *dot-size* 0.05)
 (def *ai-level* 2)
 
-(defn board-set [board]
-  board)
-
 (defn gen-board []
   (loop [n 0
          coll '()] 
@@ -95,20 +92,20 @@
 
 (defn board-attack [board player src dst dice] 
   #_(println "board-attack: board " board " player " player " src " src " dst " dst " dice " dice) 
-  (board-set (for [pos (range (count board))] 
-               (let [hex (nth board pos)] 
-                 (cond 
-                  (= pos src) (list player 1)
-                  (= pos dst) (list player (dec dice))
-                  :else hex)))))
+  (for [pos (range (count board))] 
+    (let [hex (nth board pos)] 
+      (cond 
+       (= pos src) (list player 1)
+       (= pos dst) (list player (dec dice))
+       :else hex))))
 
 (defn board-attack-fail [board player src dst dice]
   #_(println "board-attack-fail: board " board " player " player " src " src " dst " dst " dice " dice) 
-  (board-set (for [pos (range (count board))]
-               (let [hex (nth board pos)]
-                 (cond
-                  (= pos src) (list player 1)
-                  :else hex)))))
+  (for [pos (range (count board))]
+    (let [hex (nth board pos)]
+      (cond
+       (= pos src) (list player 1)
+       :else hex))))
 
 (defn roll-dice [dice-num]
   (let [total (reduce + (repeat dice-num (inc (rand-int 6))))]
