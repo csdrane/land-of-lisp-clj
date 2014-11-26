@@ -18,6 +18,12 @@
 (def *dot-size* 0.05)
 (def *ai-level* 2)
 
+(def *dice-odds* '((0.84 0.97 1.0 1.0)
+                   (0.44 0.78 0.94 0.99)
+                   (0.15 0.45 0.74 0.91)
+                   (0.04 0.19 0.46 0.72)
+                   (0.01 0.06 0.22 0.46)))
+
 (defn gen-board []
   (loop [n 0
          coll '()] 
@@ -88,7 +94,6 @@
                                      0
                                      true))
                     moves))))
-
 
 (defn board-attack [board player src dst dice] 
   #_(println "board-attack: board " board " player " player " src " src " dst " dst " dice " dice) 
@@ -227,8 +232,20 @@
 (def rate-position (memoize rate-position*))
 
 (defn get-ratings [tree player]
-  (map (fn [move] (rate-position ((comp first rest) move) player))
-       ((comp first rest rest) tree)))
+  (let [board ((comp first rest) tree)]
+    (letfn [(dice [pos] ((comp first rest) (nth board pos)))]
+      (map (fn [move]
+             (let [path (first move)]
+               (if path
+                 (let [src (first path)
+                       dst ((comp first rest) path)
+                       odds (nth (nth *dice-odds*
+                                      (dec (dice dst)))
+                                 (- (dice src) 2))]
+                   (+ (* odds (rate-position ((comp first rest) move) player))
+                      (* (- 1 odds) (rate-position ((comp first rest rest) move) player))))
+                 (rate-position ((comp first rest) move) player))))
+           ((comp first rest rest) tree)))))
 
 (defn limit-tree-depth [tree depth]
   (lazy-seq 
@@ -245,11 +262,11 @@
 (defn handle-computer [tree]
   #_(println "handle-computer") 
   (lazy-seq 
-   (let [ratings (ab-get-ratings-max (limit-tree-depth tree *ai-level*)
-                                     (first tree)
-                                     Integer/MAX_VALUE
-                                     Integer/MIN_VALUE)]
-     ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings)))))))
+   (let [ratings (get-ratings (limit-tree-depth tree *ai-level*)
+                                     (first tree))]
+     (pick-chance-branch
+      ((comp first rest) tree)
+      (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings)))))))
 
 (defn play-vs-computer [tree]
   #_(println "play-vs-computer")
