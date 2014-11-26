@@ -1,14 +1,13 @@
-;; Land of Lisp, ch. 19
-;; Web interface not implented.
+;; Land of Lisp, ch. 20
 ;; Translated into Clojure from Common Lisp
-;; http://landoflisp.com/dice_of_doom_v3.lisp
+;; http://landoflisp.com/dice_of_doom_v4.lisp
 
-(ns land-of-lisp.ch19
+(ns land-of-lisp.ch20
   (:use [clojure.pprint :only (fresh-line)])
   (:use [land-of-lisp.ch17 :only (brightness polygon tag)]))
 
-(def *num-players* 2)
-(def *max-dice* 3)
+(def *num-players* 4)
+(def *max-dice* 5)
 (def *board-size* 5)
 (def *board-hexnum* (* *board-size* *board-size*))
 (def *board-width* 1000)
@@ -17,6 +16,7 @@
 (def *top-offset* 3)
 (def *dice-scale* 40)
 (def *dot-size* 0.05)
+(def *ai-level* 2)
 
 (defn board-set [board]
   board)
@@ -48,8 +48,26 @@
 
 (declare game-tree)
 
-; TODO tail call optimization (p. 333)
+; Function is crashing when dice and players get ~ >=3. Unclear whether this is due to code issue or
+; insufficient memory allocated to Java.
 (defn add-new-dice [board player spare-dice] 
+  #_(println "add-new-dice: board " board " player " player " spare-dice " spare-dice )
+  (loop [lst board
+         n spare-dice
+         acc []]
+    #_(println "lst " lst " n " n " acc " acc)
+    (cond
+     (nil? lst) nil
+     (zero? n) (concat (reverse acc) lst)
+     (empty? lst) (reverse acc)
+     :else (let [cur-player (ffirst lst) 
+                 cur-dice ((comp first rest first) lst)]
+             (if (and (= cur-player player) 
+                      (< cur-dice *max-dice*)) 
+               (recur (rest lst) (dec n) (cons (list cur-player (inc cur-dice)) acc) )
+               (recur (rest lst) n (cons (first lst) acc)))))))
+
+(defn add-new-dice-ch19 [board player spare-dice] 
   (letfn [(f [lst n]
             (cond 
              (nil? lst) nil 
@@ -64,6 +82,7 @@
     (f board spare-dice)))
 
 (defn add-passing-move [board player spare-dice first-move moves]
+  #_(println "add-passing-move: board " board " player " player " spare-dice " spare-dice " first-move " first-move " moves " moves) 
   (lazy-seq (if first-move
               moves
               (cons (list nil
@@ -75,12 +94,40 @@
 
 
 (defn board-attack [board player src dst dice] 
+  #_(println "board-attack: board " board " player " player " src " src " dst " dst " dice " dice) 
   (board-set (for [pos (range (count board))] 
                (let [hex (nth board pos)] 
                  (cond 
                   (= pos src) (list player 1)
                   (= pos dst) (list player (dec dice))
                   :else hex)))))
+
+(defn board-attack-fail [board player src dst dice]
+  #_(println "board-attack-fail: board " board " player " player " src " src " dst " dst " dice " dice) 
+  (board-set (for [pos (range (count board))]
+               (let [hex (nth board pos)]
+                 (cond
+                  (= pos src) (list player 1)
+                  :else hex)))))
+
+(defn roll-dice [dice-num]
+  (let [total (reduce + (repeat dice-num (inc (rand-int 6))))]
+    (fresh-line)
+    (println (format "On %s dice rolled %s. " dice-num total))
+    total))
+
+(defn roll-against [src-dice dst-dice]
+  (> (roll-dice src-dice) (roll-dice dst-dice)))
+
+(defn pick-chance-branch [board move]
+  #_(println "pick-change-branch") 
+  (letfn [(dice [pos]
+            ((comp first rest) (nth board pos)))]
+    (let [path (first move)]
+      (if (or (nil? path) (roll-against (dice (first path))
+                                        (dice ((comp first rest) path))))
+        ((comp first rest) move)
+        ((comp first rest rest) move)))))
 
 (defn neighbors* [pos]
   (let [up (- pos *board-size*)
@@ -95,6 +142,7 @@
 (def neighbors (memoize neighbors*))
 
 (defn attacking-moves [board cur-player spare-dice]
+  #_(println "attacking-moves: board " board " cur-player " cur-player " spare-dice " spare-dice)
   (lazy-seq (letfn [(player [pos]
                       (first (nth board pos)))
                     (dice [pos]
@@ -109,11 +157,16 @@
                                              (game-tree (board-attack board cur-player src dst (dice src))
                                                         cur-player
                                                         (+ spare-dice (dice dst))
+                                                        nil)
+                                             (game-tree (board-attack-fail board cur-player src dst (dice src))
+                                                        cur-player
+                                                        (+ spare-dice (dice dst))
                                                         nil)))))
                                   (neighbors src))))
                       (range *board-hexnum*)))))
 
 (defn game-tree* [board player spare-dice first-move] 
+  #_(println "game-tree: board " board " player " player " spare-dice " spare-dice " first-move " first-move)
   (list player board
         (add-passing-move board
                           player
@@ -141,7 +194,7 @@
                     (format "%s -> %s" (first action) ((comp first rest) action))
                     "end turn"))))
      (fresh-line) 
-     ((comp first rest) (nth moves (dec (Integer/parseInt (read-line))))))))
+     (pick-chance-branch ((comp first rest) tree) (nth moves (dec (Integer/parseInt (read-line))))))))
 
 (defn winners [board]
   (let [tally (map first board)
@@ -154,7 +207,6 @@
   (fresh-line)
   (let [w (winners board)]
     (if (> (count w) 1)
-      ; Can't use str to realize LazySeq.
       (println (format "The game is a tie between %s" (apply pr-str (map player-letter w)))) 
       (println (format "The winner is %s" (player-letter (first w)))))))
 
@@ -181,8 +233,6 @@
   (map (fn [move] (rate-position ((comp first rest) move) player))
        ((comp first rest rest) tree)))
 
-(def *ai-level* 4)
-
 (defn limit-tree-depth [tree depth]
   (lazy-seq 
    (list (first tree)
@@ -196,14 +246,16 @@
 (declare ab-get-ratings-max ab-get-ratings-min)
 
 (defn handle-computer [tree]
+  #_(println "handle-computer") 
   (lazy-seq 
    (let [ratings (ab-get-ratings-max (limit-tree-depth tree *ai-level*)
-                              (first tree)
-                              Integer/MAX_VALUE
-                              Integer/MIN_VALUE)]
+                                     (first tree)
+                                     Integer/MAX_VALUE
+                                     Integer/MIN_VALUE)]
      ((comp first rest) (nth ((comp first rest rest) tree) (.indexOf ratings (apply max ratings)))))))
 
 (defn play-vs-computer [tree]
+  #_(println "play-vs-computer")
   (print-info tree)
   (cond
    (empty? ((comp first rest rest) tree)) (announce-winner ((comp first rest) tree))
@@ -336,7 +388,7 @@
             (recur (inc z)))))
     (.toString sb)))
 
-(def *die-colors* '((255 63 63) (63 63 255)))
+(def *die-colors* '((255 63 63) (63 63 255) (63 255 63) (255 63 255)))
 
 (defn make-game-link [pos]
   (format "/game.html?chosen=%s" pos))
