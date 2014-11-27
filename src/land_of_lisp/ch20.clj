@@ -49,14 +49,12 @@
              (print (.toString sb))
              (fresh-line)))))))
 
-(declare game-tree)
+(declare game-tree largest-cluster-size)
 
-; Function is crashing when dice and players get ~ >=3. Unclear whether this is due to code issue or
-; insufficient memory allocated to Java.
 (defn add-new-dice [board player spare-dice] 
   #_(println "add-new-dice: board " board " player " player " spare-dice " spare-dice )
   (loop [lst board
-         n spare-dice
+         n (largest-cluster-size board player)
          acc []]
     #_(println "lst " lst " n " n " acc " acc)
     (cond
@@ -69,20 +67,6 @@
                       (< cur-dice *max-dice*)) 
                (recur (rest lst) (dec n) (cons (list cur-player (inc cur-dice)) acc) )
                (recur (rest lst) n (cons (first lst) acc)))))))
-
-(defn add-new-dice-ch19 [board player spare-dice] 
-  (letfn [(f [lst n]
-            (cond 
-             (nil? lst) nil 
-             (zero? n) lst
-             :else (let [cur-player (ffirst lst) 
-                         cur-dice ((comp first rest first) lst)]
-                     (if (and (= cur-player player) 
-                              (< cur-dice *max-dice*)) 
-                       (cons (list cur-player (inc cur-dice))
-                             (f (rest lst) (dec n)))
-                       (cons (first lst) (f (rest lst) n))))))]
-    (f board spare-dice)))
 
 (defn add-passing-move [board player spare-dice first-move moves]
   #_(println "add-passing-move: board " board " player " player " spare-dice " spare-dice " first-move " first-move " moves " moves) 
@@ -254,7 +238,9 @@
          (if (zero? depth)
            nil
            (map (fn [move] (list (first move)
-                                 (limit-tree-depth ((comp first rest) move) (dec depth))))
+                                 (mapcat (fn [x]
+                                           (limit-tree-depth x (dec depth)))
+                                         (rest move))))
                 ((comp first rest rest) tree))))))
 
 (declare ab-get-ratings-max ab-get-ratings-min)
@@ -401,6 +387,32 @@
                                       (- yy (* *dice-scale* z 0.8)) col))
             (recur (inc z)))))
     (.toString sb)))
+
+(defn get-connected [board player pos]
+  (letfn [(check-pos [pos visited]
+            (if (and (= (first (nth board pos)) player)
+                     (not (some #(= % pos) visited)))
+              (check-neighbors (neighbors pos) (cons pos visited))
+              visited))
+          (check-neighbors [lst visited]
+            (if (seq lst)
+              (check-neighbors (rest lst) (check-pos (first lst) visited))
+              visited))]
+    (check-pos pos '())))
+
+(defn largest-cluster-size [board player]
+  (letfn [(f [pos visited best]
+            (if (< pos *board-hexnum*)
+              (if (and (= (first (nth board pos)) player)
+                       (not (some #(= % pos) visited)))
+                (let [cluster (get-connected board player pos)
+                      size (count cluster)]
+                  (if (> size best)
+                    (f (inc pos) (concat cluster visited) size)
+                    (f (inc pos) (concat cluster visited) best)))
+                (f (inc pos) visited best))
+              best))]
+    (f 0 '() 0)))
 
 (def *die-colors* '((255 63 63) (63 63 255) (63 255 63) (255 63 255)))
 
